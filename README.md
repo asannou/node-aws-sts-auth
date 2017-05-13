@@ -19,5 +19,5 @@ arn:aws:sts::123456789012:assumed-role/role-name/role-session-name
 
 ```
 $ docker run -it --rm asannou/aws-sts-auth validate 'https://sts.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIIJ7EJOJEDUKPIMQ%2F20170513%2Fus-east-1%2Fsts%2Faws4_request&X-Amz-Date=20170513T081334Z&X-Amz-Expires=60&X-Amz-Signature=e263c43ca1a968145738c5eac4618955a7ac600cc8e762be0ff3b0dbd228fc5d&X-Amz-SignedHeaders=host%3Bx-host' example.com
-arn:aws:iam::255384176336:user/user-name
+arn:aws:iam::123456789012:user/user-name
 ```
