@@ -7,10 +7,14 @@ const generateToken = (host, expire, callback) => {
   const req = sts.getCallerIdentity();
   req.httpRequest.headers["X-Host"] = host;
   req.presign(expire, (err, token) => {
-    const URL = require("url").URL;
-    const url = new URL(token);
-    url.searchParams.delete("X-Host");
-    callback(null, url.href);
+    if (err) {
+      callback(err);
+    } else {
+      const URL = require("url").URL;
+      const url = new URL(token);
+      url.searchParams.delete("X-Host");
+      callback(null, url.href);
+    }
   });
 };
 
@@ -40,14 +44,18 @@ if (require.main === module) {
     const host = process.argv[3] || "example.com";
     const expire = process.argv[4] || 900;
     generateToken(host, expire, (err, token) => {
-      console.log(token);
+      if (err) {
+        console.error(err);
+      } else {
+        console.log(token);
+      }
     });
   } else if (func === "validate") {
     const token = process.argv[3];
     const host = process.argv[4] || "example.com";
     validateToken(token, host, (err, arn) => {
       if (err) {
-        console.log(err);
+        console.error(err);
       } else {
         console.log(arn);
       }
