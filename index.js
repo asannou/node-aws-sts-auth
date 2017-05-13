@@ -1,6 +1,31 @@
 #!/usr/bin/env node
 "use strict";
 
+const shortenToken = token => {
+  const URL = require("url").URL;
+  const url = new URL(token);
+  const params = url.searchParams;
+  let st = params.get("X-Amz-Security-Token");
+  if (st) {
+    st = st.replace(/\+/g, "-").replace(/\//g, "_");
+    params.set("X-Amz-Security-Token", st);
+  }
+  params.delete("X-Host");
+  return params.toString();
+};
+
+const stretchToken = token => {
+  const URL = require("url").URL;
+  const url = new URL("https://sts.amazonaws.com/?" + token);
+  const params = url.searchParams;
+  let st = params.get("X-Amz-Security-Token");
+  if (st) {
+    st = st.replace(/-/g, "+").replace(/_/g, "/");
+    params.set("X-Amz-Security-Token", st);
+  }
+  return url.href;
+};
+
 const generateToken = (host, expire, callback) => {
   const AWS = require("aws-sdk");
   const sts = new AWS.STS();
@@ -10,10 +35,7 @@ const generateToken = (host, expire, callback) => {
     if (err) {
       callback(err);
     } else {
-      const URL = require("url").URL;
-      const url = new URL(token);
-      url.searchParams.delete("X-Host");
-      callback(null, url.href);
+      callback(null, shortenToken(token));
     }
   });
 };
@@ -21,8 +43,7 @@ const generateToken = (host, expire, callback) => {
 const validateToken = (token, host, callback) => {
   const url = require("url");
   const https = require("https");
-  const options = url.parse(token);
-  options.hostname = "sts.amazonaws.com";
+  const options = url.parse(stretchToken(token));
   options.headers = { "X-Host": host };
   https.get(options, res => {
     if (res.statusCode === 200) {
