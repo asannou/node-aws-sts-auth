@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 "use strict";
 
-const shortenToken = token => {
+const HOST = "sts.amazonaws.com";
+const ACTION = "GetCallerIdentity";
+const VERSION = "2011-06-15";
+
+const urlToToken = token => {
   const URL = require("url").URL;
   const url = new URL(token);
   const params = url.searchParams;
@@ -10,14 +14,18 @@ const shortenToken = token => {
     st = st.replace(/\+/g, "-").replace(/\//g, "_");
     params.set("X-Amz-Security-Token", st);
   }
+  params.delete("Action");
+  params.delete("Version");
   params.delete("X-Host");
   return params.toString();
 };
 
-const stretchToken = token => {
+const tokenToUrl = token => {
   const URL = require("url").URL;
-  const url = new URL("https://sts.amazonaws.com/?" + token);
+  const url = new URL(`https://${HOST}/?` + token);
   const params = url.searchParams;
+  params.set("Action", ACTION);
+  params.set("Version", VERSION);
   let st = params.get("X-Amz-Security-Token");
   if (st) {
     st = st.replace(/-/g, "+").replace(/_/g, "/");
@@ -28,33 +36,37 @@ const stretchToken = token => {
 
 const generateToken = (host, expire, callback) => {
   const AWS = require("aws-sdk");
-  const sts = new AWS.STS();
+  const sts = new AWS.STS({ apiVersion: VERSION });
   const req = sts.getCallerIdentity();
   req.httpRequest.headers["X-Host"] = host;
-  req.presign(expire, (err, token) => {
+  req.presign(expire, (err, url) => {
     if (err) {
       callback(err);
     } else {
-      callback(null, shortenToken(token));
+      callback(null, urlToToken(url));
     }
   });
+};
+
+const slurpStream = (stream, callback) => {
+  let buf = "";
+  stream.on("data", chunk => buf += chunk);
+  stream.on("end", () => callback(buf));
 };
 
 const validateToken = (token, host, callback) => {
   const url = require("url");
   const https = require("https");
-  const options = url.parse(stretchToken(token));
+  const options = url.parse(tokenToUrl(token));
   options.headers = { "X-Host": host };
   https.get(options, res => {
     if (res.statusCode === 200) {
-      let buf = "";
-      res.on("data", chunk => buf += chunk.toString());
-      res.on("end", () => {
-        const [, arn] = buf.match(/<Arn>([^<]+)/);
+      slurpStream(res, data => {
+        const [, arn] = data.match(/<Arn>([^<]+)/);
         callback(null, arn);
       });
     } else {
-      res.on("data", chunk => callback(chunk.toString()));
+      slurpStream(res, callback);
     }
   });
 };
